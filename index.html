@@ -31,7 +31,7 @@ async function decoded(text){if(handled)return;const id=getPieceId(text);if(!id)
 start.addEventListener("click",async function(){
 if(running)return;if(typeof Html5Qrcode==="undefined"){setStatus("Bibliothèque QR non chargée. Vérifiez Internet et rechargez.");return}
 handled=false;start.disabled=true;setStatus("Démarrage de la caméra…");scanner=new Html5Qrcode("reader");
-try{await scanner.start({facingMode:{ideal:"environment"}},{fps:10,aspectRatio:1,qrbox:function(w,h){const n=Math.max(180,Math.min(320,Math.floor(Math.min(w,h)*.72)));return{width:n,height:n}}},decoded,function(){});
+try{await scanner.start({facingMode:"environment"},{fps:10,aspectRatio:1,qrbox:function(w,h){const n=Math.max(180,Math.min(320,Math.floor(Math.min(w,h)*.72)));return{width:n,height:n}}},decoded,function(){});
 running=true;stop.disabled=false;setStatus("Caméra active. Placez le QR dans le cadre : lecture automatique.")
 }catch(e){console.error(e);try{scanner.clear()}catch(x){}scanner=null;start.disabled=false;stop.disabled=true;const n=e&&e.name?e.name:"Erreur inconnue";setStatus("Caméra non démarrée : "+n+(e&&e.message?" — "+e.message:"")+". Vérifiez HTTPS et les permissions du site.")}});
 stop.addEventListener("click",async function(){await stopScanner();setStatus("Scanner arrêté.")});
