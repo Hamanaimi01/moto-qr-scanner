@@ -33,23 +33,17 @@ button:disabled{opacity:.5}
     <p class="small">Cette page doit être hébergée en HTTPS. La caméra doit être autorisée par le navigateur.</p>
   </div>
 </main>
-
 <script>
 (function () {
   "use strict";
-
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxA3LgbDZcG9C-t7CWT-eiWYEilesdew71pSTMCNwKytrYuoNUqV5I5XTFW5O_OnCeB/exec";
   const status = document.getElementById("status");
   const start = document.getElementById("start");
   const stop = document.getElementById("stop");
-
   let scanner = null;
   let running = false;
   let handled = false;
-
-  function setStatus(message) {
-    status.textContent = message;
-  }
+  function setStatus(message) { status.textContent = message; }
 
   async function stopScanner() {
     const currentScanner = scanner;
@@ -57,44 +51,26 @@ button:disabled{opacity:.5}
     running = false;
     start.disabled = false;
     stop.disabled = true;
-
     if (currentScanner) {
-      try {
-        await currentScanner.stop();
-      } catch (e) {
-        // La caméra peut déjà être arrêtée après la lecture.
-      }
-      try {
-        currentScanner.clear();
-      } catch (e) {
-        // Nettoyage facultatif.
-      }
+      try { await currentScanner.stop(); } catch (e) {}
+      try { currentScanner.clear(); } catch (e) {}
     }
-
     document.getElementById("reader").innerHTML = "";
   }
 
   async function decoded(text) {
     if (handled) return;
-
-    // On garde le lien complet encodé dans le QR : on ne reconstruit pas l'URL.
     const originalUrl = String(text || "").trim();
-
+    let url;
     try {
-      const url = new URL(originalUrl);
-
-      // Accepter uniquement le lien Apps Script de l'application et un QR avec pieceId.
-      if (
-        url.origin !== "https://script.google.com" ||
-        url.pathname.indexOf("/macros/s/") !== 0 ||
-        url.pathname.indexOf("/exec") === -1 ||
-        !url.searchParams.get("pieceId")
-      ) {
+      url = new URL(originalUrl);
+      if (url.origin !== "https://script.google.com" ||
+          url.pathname.indexOf("/macros/s/") !== 0 ||
+          url.pathname.indexOf("/exec") === -1 ||
+          !url.searchParams.get("pieceId")) {
         setStatus("QR invalide : lien de pièce non reconnu.");
         return;
       }
-
-      // Vérifier que le QR vise bien le déploiement attendu.
       if (url.href.split("?")[0] !== WEB_APP_URL) {
         setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
         return;
@@ -105,65 +81,51 @@ button:disabled{opacity:.5}
     }
 
     handled = true;
-    setStatus("QR reconnu. Ouverture de la fiche pièce…");
+    setStatus("QR reconnu. Ouverture de la pièce dans Gestion Moto Stars…");
+    const pieceId = url.searchParams.get("pieceId");
     await stopScanner();
-
-    // Ouvrir exactement le lien original lu par le scanner.
-    window.location.href = originalUrl;
+    // Revenir au dashboard principal et demander l'ouverture du formulaire de modification.
+    const dashboardUrl = new URL(WEB_APP_URL);
+    dashboardUrl.searchParams.set("page", "dashboard");
+    dashboardUrl.searchParams.set("pieceId", pieceId);
+    window.location.href = dashboardUrl.toString();
   }
 
   start.addEventListener("click", async function () {
     if (running) return;
-
     if (typeof Html5Qrcode === "undefined") {
       setStatus("Bibliothèque QR non chargée. Vérifiez Internet et rechargez la page.");
       return;
     }
-
     handled = false;
     start.disabled = true;
     setStatus("Démarrage de la caméra…");
     scanner = new Html5Qrcode("reader");
-
     try {
-      await scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          aspectRatio: 1,
-          qrbox: function (width, height) {
-            const size = Math.max(180, Math.min(320, Math.floor(Math.min(width, height) * 0.72)));
-            return { width: size, height: size };
-          }
-        },
-        decoded,
-        function () {
-          // Les erreurs de lecture d'une image pendant la recherche sont normales.
+      await scanner.start({ facingMode: "environment" }, {
+        fps: 10,
+        aspectRatio: 1,
+        qrbox: function (width, height) {
+          const size = Math.max(180, Math.min(320, Math.floor(Math.min(width, height) * 0.72)));
+          return { width: size, height: size };
         }
-      );
-
+      }, decoded, function () {});
       running = true;
       stop.disabled = false;
       setStatus("Caméra active. Placez le QR dans le cadre : lecture automatique.");
     } catch (e) {
       console.error("Erreur de démarrage caméra :", e);
-      try {
-        if (scanner) scanner.clear();
-      } catch (x) {}
+      try { if (scanner) scanner.clear(); } catch (x) {}
       scanner = null;
       running = false;
       start.disabled = false;
       stop.disabled = true;
-
       const errorName = e && e.name ? e.name : "Erreur inconnue";
-      setStatus(
-        "Caméra non démarrée : " + errorName +
+      setStatus("Caméra non démarrée : " + errorName +
         (e && e.message ? " — " + e.message : "") +
-        ". Vérifiez HTTPS et les permissions du site."
-      );
+        ". Vérifiez HTTPS et les permissions du site.");
     }
   });
-
   stop.addEventListener("click", async function () {
     await stopScanner();
     setStatus("Scanner arrêté.");
