@@ -6,34 +6,169 @@
 <title>Scanner QR — Gestion Moto Stars</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;padding:18px;background:#0b1220;color:#f8fafc;font-family:Arial,sans-serif;display:flex;justify-content:center;min-height:100vh}main{width:100%;max-width:520px}.card{background:#111c2f;border:1px solid #273449;border-radius:18px;padding:18px}h1{font-size:1.3rem}p{color:#cbd5e1;line-height:1.5}#status{background:#1e293b;padding:12px;border-radius:10px;margin:15px 0}#reader{width:100%;overflow:hidden;border-radius:12px;background:#020617}button{width:100%;padding:13px;border:0;border-radius:10px;font-size:1rem;font-weight:bold;margin-top:10px}.primary{background:#22c55e;color:#052e16}.secondary{background:#334155;color:white}button:disabled{opacity:.5}.small{font-size:.82rem;color:#94a3b8}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#0b1220;color:#f8fafc;font-family:Arial,sans-serif;display:flex;justify-content:center;min-height:100vh}
+main{width:100%;max-width:520px}
+.card{background:#111c2f;border:1px solid #273449;border-radius:18px;padding:18px}
+h1{font-size:1.3rem}
+p{color:#cbd5e1;line-height:1.5}
+#status{background:#1e293b;padding:12px;border-radius:10px;margin:15px 0}
+#reader{width:100%;overflow:hidden;border-radius:12px;background:#020617}
+button{width:100%;padding:13px;border:0;border-radius:10px;font-size:1rem;font-weight:bold;margin-top:10px}
+.primary{background:#22c55e;color:#052e16}
+.secondary{background:#334155;color:white}
+button:disabled{opacity:.5}
+.small{font-size:.82rem;color:#94a3b8}
 </style>
 </head>
-<body><main><div class="card">
-<h1>📷 Scanner QR — Pièces</h1>
-<p>Appuyez sur « Démarrer le scanner », puis dirigez la caméra vers le QR Code. La lecture est automatique.</p>
-<div id="status" role="status" aria-live="polite">Scanner prêt.</div>
-<div id="reader"></div>
-<button id="start" class="primary">Démarrer le scanner</button>
-<button id="stop" class="secondary" disabled>Arrêter la caméra</button>
-<p class="small">Cette page doit être hébergée en HTTPS. La caméra doit être autorisée par le navigateur.</p>
-</div></main>
+<body>
+<main>
+  <div class="card">
+    <h1>📷 Scanner QR — Pièces</h1>
+    <p>Appuyez sur « Démarrer le scanner », puis dirigez la caméra vers le QR Code. La lecture est automatique.</p>
+    <div id="status" role="status" aria-live="polite">Scanner prêt.</div>
+    <div id="reader"></div>
+    <button id="start" class="primary" type="button">Démarrer le scanner</button>
+    <button id="stop" class="secondary" type="button" disabled>Arrêter la caméra</button>
+    <p class="small">Cette page doit être hébergée en HTTPS. La caméra doit être autorisée par le navigateur.</p>
+  </div>
+</main>
+
 <script>
-(function(){
-"use strict";
-const WEB_APP_URL="https://script.google.com/macros/s/AKfycbxA3LgbDZgC9-t7CWT-eiWYEilesdew71pSTMCNwKytrYuoNUqV5I5XTFW5O_OnCeB/exec";
-const status=document.getElementById("status"), start=document.getElementById("start"), stop=document.getElementById("stop");
-let scanner=null,running=false,handled=false;
-function setStatus(t){status.textContent=t}
-function getPieceId(text){try{return new URL(String(text||"").trim()).searchParams.get("pieceId")||""}catch(e){return ""}}
-async function stopScanner(){const s=scanner;scanner=null;running=false;start.disabled=false;stop.disabled=true;if(s){try{await s.stop()}catch(e){}try{s.clear()}catch(e){}}document.getElementById("reader").innerHTML=""}
-async function decoded(text){if(handled)return;const id=getPieceId(text);if(!id){setStatus("QR détecté, mais aucun pieceId trouvé. Scannez le QR d’une pièce.");return}handled=true;setStatus("QR reconnu. Ouverture de la fiche pièce…");await stopScanner();location.href=WEB_APP_URL+"?pieceId="+encodeURIComponent(id)}
-start.addEventListener("click",async function(){
-if(running)return;if(typeof Html5Qrcode==="undefined"){setStatus("Bibliothèque QR non chargée. Vérifiez Internet et rechargez.");return}
-handled=false;start.disabled=true;setStatus("Démarrage de la caméra…");scanner=new Html5Qrcode("reader");
-try{await scanner.start({facingMode:"environment"},{fps:10,aspectRatio:1,qrbox:function(w,h){const n=Math.max(180,Math.min(320,Math.floor(Math.min(w,h)*.72)));return{width:n,height:n}}},decoded,function(){});
-running=true;stop.disabled=false;setStatus("Caméra active. Placez le QR dans le cadre : lecture automatique.")
-}catch(e){console.error(e);try{scanner.clear()}catch(x){}scanner=null;start.disabled=false;stop.disabled=true;const n=e&&e.name?e.name:"Erreur inconnue";setStatus("Caméra non démarrée : "+n+(e&&e.message?" — "+e.message:"")+". Vérifiez HTTPS et les permissions du site.")}});
-stop.addEventListener("click",async function(){await stopScanner();setStatus("Scanner arrêté.")});
+(function () {
+  "use strict";
+
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxA3LgbDZcG9C-t7CWT-eiWYEilesdew71pSTMCNwKytrYuoNUqV5I5XTFW5O_OnCeB/exec";
+  const status = document.getElementById("status");
+  const start = document.getElementById("start");
+  const stop = document.getElementById("stop");
+
+  let scanner = null;
+  let running = false;
+  let handled = false;
+
+  function setStatus(message) {
+    status.textContent = message;
+  }
+
+  async function stopScanner() {
+    const currentScanner = scanner;
+    scanner = null;
+    running = false;
+    start.disabled = false;
+    stop.disabled = true;
+
+    if (currentScanner) {
+      try {
+        await currentScanner.stop();
+      } catch (e) {
+        // La caméra peut déjà être arrêtée après la lecture.
+      }
+      try {
+        currentScanner.clear();
+      } catch (e) {
+        // Nettoyage facultatif.
+      }
+    }
+
+    document.getElementById("reader").innerHTML = "";
+  }
+
+  async function decoded(text) {
+    if (handled) return;
+
+    // On garde le lien complet encodé dans le QR : on ne reconstruit pas l'URL.
+    const originalUrl = String(text || "").trim();
+
+    try {
+      const url = new URL(originalUrl);
+
+      // Accepter uniquement le lien Apps Script de l'application et un QR avec pieceId.
+      if (
+        url.origin !== "https://script.google.com" ||
+        url.pathname.indexOf("/macros/s/") !== 0 ||
+        url.pathname.indexOf("/exec") === -1 ||
+        !url.searchParams.get("pieceId")
+      ) {
+        setStatus("QR invalide : lien de pièce non reconnu.");
+        return;
+      }
+
+      // Vérifier que le QR vise bien le déploiement attendu.
+      if (url.href.split("?")[0] !== WEB_APP_URL) {
+        setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
+        return;
+      }
+    } catch (e) {
+      setStatus("QR invalide : lien incorrect.");
+      return;
+    }
+
+    handled = true;
+    setStatus("QR reconnu. Ouverture de la fiche pièce…");
+    await stopScanner();
+
+    // Ouvrir exactement le lien original lu par le scanner.
+    window.location.href = originalUrl;
+  }
+
+  start.addEventListener("click", async function () {
+    if (running) return;
+
+    if (typeof Html5Qrcode === "undefined") {
+      setStatus("Bibliothèque QR non chargée. Vérifiez Internet et rechargez la page.");
+      return;
+    }
+
+    handled = false;
+    start.disabled = true;
+    setStatus("Démarrage de la caméra…");
+    scanner = new Html5Qrcode("reader");
+
+    try {
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          aspectRatio: 1,
+          qrbox: function (width, height) {
+            const size = Math.max(180, Math.min(320, Math.floor(Math.min(width, height) * 0.72)));
+            return { width: size, height: size };
+          }
+        },
+        decoded,
+        function () {
+          // Les erreurs de lecture d'une image pendant la recherche sont normales.
+        }
+      );
+
+      running = true;
+      stop.disabled = false;
+      setStatus("Caméra active. Placez le QR dans le cadre : lecture automatique.");
+    } catch (e) {
+      console.error("Erreur de démarrage caméra :", e);
+      try {
+        if (scanner) scanner.clear();
+      } catch (x) {}
+      scanner = null;
+      running = false;
+      start.disabled = false;
+      stop.disabled = true;
+
+      const errorName = e && e.name ? e.name : "Erreur inconnue";
+      setStatus(
+        "Caméra non démarrée : " + errorName +
+        (e && e.message ? " — " + e.message : "") +
+        ". Vérifiez HTTPS et les permissions du site."
+      );
+    }
+  });
+
+  stop.addEventListener("click", async function () {
+    await stopScanner();
+    setStatus("Scanner arrêté.");
+  });
 })();
-</script></body></html>
+</script>
+</body>
+</html>
