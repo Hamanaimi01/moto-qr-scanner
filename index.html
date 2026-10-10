@@ -104,14 +104,20 @@ button:disabled{opacity:.5}
       return;
     }
 
-    handled = true;
-    setStatus("QR reconnu. Ouverture de la fiche pièce…");
+    // Transmettre explicitement le mode du scanner au lien QR.
+    // Le cache serveur seul n'est pas fiable entre l'onglet Dashboard,
+    // GitHub Pages et la navigation finale vers l'application.
+    const scannerMode = new URLSearchParams(window.location.search).get("mode");
+    if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
+      url.searchParams.set("mode", scannerMode);
+    }
 
-    // Lancer l'arrêt de la caméra sans attendre : si stop() tarde, la navigation
-    // ne doit pas rester bloquée sur la page du scanner.
+    handled = true;
+    setStatus("QR reconnu. Ouverture du formulaire pièce…");
+
+    // Lancer l'arrêt de la caméra sans attendre la fin de stop().
     const stopPromise = stopScanner();
-    window.location.replace(originalUrl);
-    // L'arrêt est déjà lancé ; on évite de bloquer la redirection dessus.
+    window.location.replace(url.toString());
     stopPromise.catch(function (e) {
       console.warn("Arrêt caméra après lecture QR :", e);
     });
