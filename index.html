@@ -106,19 +106,15 @@ button:disabled{opacity:.5}
 
     handled = true;
     setStatus("QR reconnu. Ouverture de la fiche pièce…");
-    await stopScanner();
 
-    // Revenir dans le dashboard principal avec l'ID de la pièce scannée.
-    // doGet(e) transmettra l'ID et le mode Ajouter/Utiliser au formulaire existant.
-    const dashboardUrl = new URL(WEB_APP_URL);
-    dashboardUrl.searchParams.set("page", "dashboard");
-    dashboardUrl.searchParams.set("pieceId", url.searchParams.get("pieceId"));
-    // Mode envoyé explicitement : ne dépend plus du cache entre deux onglets.
-    const scannerMode = new URLSearchParams(window.location.search).get("mode");
-    if (scannerMode === "Utiliser" || scannerMode === "Ajouter") {
-      dashboardUrl.searchParams.set("mode", scannerMode);
-    }
-    window.location.href = dashboardUrl.toString();
+    // Lancer l'arrêt de la caméra sans attendre : si stop() tarde, la navigation
+    // ne doit pas rester bloquée sur la page du scanner.
+    const stopPromise = stopScanner();
+    window.location.replace(originalUrl);
+    // L'arrêt est déjà lancé ; on évite de bloquer la redirection dessus.
+    stopPromise.catch(function (e) {
+      console.warn("Arrêt caméra après lecture QR :", e);
+    });
   }
 
   start.addEventListener("click", async function () {
