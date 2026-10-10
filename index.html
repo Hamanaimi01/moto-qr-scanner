@@ -75,38 +75,34 @@ button:disabled{opacity:.5}
   }
 
   async function decoded(text) {
-    if (handled) return;
+  if (handled) return;
 
-    // On garde le lien complet encodé dans le QR : on ne reconstruit pas l'URL.
+  try {
     const originalUrl = String(text || "").trim();
+    let url;                                   // barra mel try
 
     try {
-      const url = new URL(originalUrl);
-
-      // Accepter uniquement le lien Apps Script de l'application et un QR avec pieceId.
-      if (
-        url.origin !== "https://script.google.com" ||
-        url.pathname.indexOf("/macros/s/") !== 0 ||
-        url.pathname.indexOf("/exec") === -1 ||
-        !url.searchParams.get("pieceId")
-      ) {
-        setStatus("QR invalide : lien de pièce non reconnu.");
-        return;
-      }
-
-      // Vérifier que le QR vise bien le déploiement attendu.
-      if (url.href.split("?")[0] !== WEB_APP_URL) {
-        setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
-        return;
-      }
+      url = new URL(originalUrl);
     } catch (e) {
       setStatus("QR invalide : lien incorrect.");
       return;
     }
 
-    // Transmettre explicitement le mode du scanner au lien QR.
-    // Le cache serveur seul n'est pas fiable entre l'onglet Dashboard,
-    // GitHub Pages et la navigation finale vers l'application.
+    if (
+      url.origin !== "https://script.google.com" ||
+      url.pathname.indexOf("/macros/s/") !== 0 ||
+      url.pathname.indexOf("/exec") === -1 ||
+      !url.searchParams.get("pieceId")
+    ) {
+      setStatus("QR invalide : lien de pièce non reconnu.");
+      return;
+    }
+
+    if (url.href.split("?")[0] !== WEB_APP_URL) {
+      setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
+      return;
+    }
+
     const scannerMode = new URLSearchParams(window.location.search).get("mode");
     if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
       url.searchParams.set("mode", scannerMode);
@@ -115,14 +111,16 @@ button:disabled{opacity:.5}
     handled = true;
     setStatus("QR reconnu. Ouverture du formulaire pièce…");
 
-    // Lancer l'arrêt de la caméra sans attendre la fin de stop().
     const stopPromise = stopScanner();
     window.location.replace(url.toString());
     stopPromise.catch(function (e) {
       console.warn("Arrêt caméra après lecture QR :", e);
     });
+  } catch (err) {
+    console.error("Erreur decoded :", err);
+    setStatus("Erreur : " + (err && err.message ? err.message : err));
   }
-
+}
   start.addEventListener("click", async function () {
     if (running) return;
 
