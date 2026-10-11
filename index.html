@@ -59,85 +59,73 @@ button:disabled{opacity:.5}
     stop.disabled = true;
 
     if (currentScanner) {
-      try {
-        await currentScanner.stop();
-      } catch (e) {
-        // La caméra peut déjà être arrêtée après la lecture.
-      }
-      try {
-        currentScanner.clear();
-      } catch (e) {
-        // Nettoyage facultatif.
-      }
+      try { await currentScanner.stop(); } catch (e) {}
+      try { currentScanner.clear(); } catch (e) {}
     }
-
     document.getElementById("reader").innerHTML = "";
   }
 
   async function decoded(text) {
-  if (handled) return;
-
-  try {
-    const originalUrl = String(text || "").trim();
-    let url;                                   // barra mel try
+    if (handled) return;
 
     try {
-      url = new URL(originalUrl);
-    } catch (e) {
-      setStatus("QR invalide : lien incorrect.");
-      return;
+      const originalUrl = String(text || "").trim();
+      let url;
+      try {
+        url = new URL(originalUrl);
+      } catch (e) {
+        setStatus("QR invalide : lien incorrect.");
+        return;
+      }
+
+      if (
+        url.origin !== "https://script.google.com" ||
+        url.pathname.indexOf("/macros/s/") !== 0 ||
+        url.pathname.indexOf("/exec") === -1 ||
+        !url.searchParams.get("pieceId")
+      ) {
+        setStatus("QR invalide : lien de pièce non reconnu.");
+        return;
+      }
+
+      if (url.href.split("?")[0] !== WEB_APP_URL) {
+        setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
+        return;
+      }
+
+      const scannerParams = new URLSearchParams(window.location.search);
+      const scannerMode = scannerParams.get("mode");
+      const sessionToken = scannerParams.get("t");
+
+      if (!sessionToken) {
+        setStatus("Session absente. ارجع للـ Dashboard وعاود افتح الـ Scanner.");
+        return;
+      }
+
+      // Conserver la session courante et réutiliser le même pieceId du QR.
+      url.searchParams.set("t", sessionToken);
+
+      if (["Ajouter", "Utiliser", "Positionnement"].includes(scannerMode)) {
+        url.searchParams.set("mode", scannerMode);
+        url.searchParams.set("page", "dashboard");
+      }
+
+      handled = true;
+      setStatus(scannerMode === "Positionnement"
+        ? "QR reconnu. Retour au Dashboard et ouverture du positionnement…"
+        : "QR reconnu. Ouverture du formulaire pièce…");
+
+      const stopPromise = stopScanner();
+      window.location.replace(url.toString());
+      stopPromise.catch(function (e) { console.warn("Arrêt caméra après lecture QR :", e); });
+    } catch (err) {
+      console.error("Erreur decoded :", err);
+      setStatus("Erreur : " + (err && err.message ? err.message : err));
     }
-
-    if (
-      url.origin !== "https://script.google.com" ||
-      url.pathname.indexOf("/macros/s/") !== 0 ||
-      url.pathname.indexOf("/exec") === -1 ||
-      !url.searchParams.get("pieceId")
-    ) {
-      setStatus("QR invalide : lien de pièce non reconnu.");
-      return;
-    }
-
-    if (url.href.split("?")[0] !== WEB_APP_URL) {
-      setStatus("QR reconnu, mais le lien ne correspond pas au déploiement attendu.");
-      return;
-    }
-
-    
-const scannerParams = new URLSearchParams(window.location.search);
-const scannerMode = scannerParams.get("mode");
-const sessionToken = scannerParams.get("t");
-
-// لازم نحافظوا على session متاع المستخدم
-if (!sessionToken) {
-  setStatus("Session absente. ارجع للـ Dashboard وعاود افتح الـ Scanner.");
-  return;
-}
-
-url.searchParams.set("t", sessionToken);
-
-if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
-  url.searchParams.set("mode", scannerMode);
-  url.searchParams.set("page", "dashboard");
-}
-
-
-    handled = true;
-    setStatus("QR reconnu. Ouverture du formulaire pièce…");
-
-    const stopPromise = stopScanner();
-    window.location.replace(url.toString());
-    stopPromise.catch(function (e) {
-      console.warn("Arrêt caméra après lecture QR :", e);
-    });
-  } catch (err) {
-    console.error("Erreur decoded :", err);
-    setStatus("Erreur : " + (err && err.message ? err.message : err));
   }
-}
+
   start.addEventListener("click", async function () {
     if (running) return;
-
     if (typeof Html5Qrcode === "undefined") {
       setStatus("Bibliothèque QR non chargée. Vérifiez Internet et rechargez la page.");
       return;
@@ -160,30 +148,22 @@ if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
           }
         },
         decoded,
-        function () {
-          // Les erreurs de lecture d'une image pendant la recherche sont normales.
-        }
+        function () {}
       );
-
       running = true;
       stop.disabled = false;
       setStatus("Caméra active. Placez le QR dans le cadre : lecture automatique.");
     } catch (e) {
       console.error("Erreur de démarrage caméra :", e);
-      try {
-        if (scanner) scanner.clear();
-      } catch (x) {}
+      try { if (scanner) scanner.clear(); } catch (x) {}
       scanner = null;
       running = false;
       start.disabled = false;
       stop.disabled = true;
-
       const errorName = e && e.name ? e.name : "Erreur inconnue";
-      setStatus(
-        "Caméra non démarrée : " + errorName +
+      setStatus("Caméra non démarrée : " + errorName +
         (e && e.message ? " — " + e.message : "") +
-        ". Vérifiez HTTPS et les permissions du site."
-      );
+        ". Vérifiez HTTPS et les permissions du site.");
     }
   });
 
