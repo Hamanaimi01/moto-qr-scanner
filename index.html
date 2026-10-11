@@ -103,15 +103,9 @@ button:disabled{opacity:.5}
       return;
     }
 
-        const scannerParams = new URLSearchParams(window.location.search);
-    const scannerMode = scannerParams.get("mode");
-    const scannerToken = scannerParams.get("t");
-
+    const scannerMode = new URLSearchParams(window.location.search).get("mode");
     if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
       url.searchParams.set("mode", scannerMode);
-    }
-    if (scannerToken) {
-      url.searchParams.set("t", scannerToken);
     }
 
     handled = true;
