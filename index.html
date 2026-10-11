@@ -103,10 +103,24 @@ button:disabled{opacity:.5}
       return;
     }
 
-    const scannerMode = new URLSearchParams(window.location.search).get("mode");
-    if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
-      url.searchParams.set("mode", scannerMode);
-    }
+    
+const scannerParams = new URLSearchParams(window.location.search);
+const scannerMode = scannerParams.get("mode");
+const sessionToken = scannerParams.get("t");
+
+// لازم نحافظوا على session متاع المستخدم
+if (!sessionToken) {
+  setStatus("Session absente. ارجع للـ Dashboard وعاود افتح الـ Scanner.");
+  return;
+}
+
+url.searchParams.set("t", sessionToken);
+
+if (scannerMode === "Ajouter" || scannerMode === "Utiliser") {
+  url.searchParams.set("mode", scannerMode);
+  url.searchParams.set("page", "dashboard");
+}
+
 
     handled = true;
     setStatus("QR reconnu. Ouverture du formulaire pièce…");
